@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solmar Bay — A Solmar Bay Story</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #0b0e14; }
+  #game-canvas { display: block; width: 100%; height: 100%; }
+  .screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; z-index: 20; color: #fff; font-family: Verdana, Arial, sans-serif; text-align: center; }
+  #screen-title { background: linear-gradient(180deg, rgba(8,12,20,.12) 0%, rgba(8,12,20,.38) 55%, rgba(8,12,20,.72) 100%); }
+  #screen-pause { background: rgba(5,8,14,.72); display: none; }
+  .game-title { font-size: 72px; font-weight: bold; letter-spacing: 10px; text-shadow: 0 4px 18px rgba(0,0,0,.9); margin: 0; }
+  .game-sub { font-size: 17px; letter-spacing: 4px; color: #ffd23f; margin: 8px 0 0; text-shadow: 0 2px 8px rgba(0,0,0,.9); }
+  .story { max-width: 560px; margin: 26px 16px 0; font-size: 15px; line-height: 1.6; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  .controls { margin: 22px 0 0; font-size: 13.5px; line-height: 1.9; color: #dfe6ee; text-shadow: 0 2px 6px rgba(0,0,0,.9); }
+  .btn { pointer-events: auto; cursor: pointer; margin-top: 26px; padding: 13px 42px; font-size: 17px; font-weight: bold; letter-spacing: 2px; color: #111; background: #ffd23f; border: none; border-radius: 4px; }
+  .btn:hover { background: #ffe27a; }
+  .btn.ghost { background: transparent; color: #fff; border: 2px solid rgba(255,255,255,.7); margin-top: 12px; }
+  .foot { margin-top: 30px; font-size: 11.5px; color: rgba(255,255,255,.65); text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+  #fatal { display: none; position: fixed; top: 8px; left: 8px; z-index: 99; background: #a00; color: #fff; padding: 8px 12px; font: 13px monospace; max-width: 90vw; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game-canvas"></canvas>
+<div id="fatal"></div>
+
+<div id="screen-title" class="screen">
+  <h1 class="game-title">SOLMAR BAY</h1>
+  <div class="game-sub">A SOLMAR BAY STORY &mdash; THE SOLMAR JOB</div>
+  <div class="story">Mara Voss is back in the city that made her — sun, salt air and bad
+  decisions. Dante Reyes has a job lined up: three scores, one payday, and the
+  whole Solmar Bay PD in the way. Steal a car. Run the Bayfront. Take the bank.
+  Don't get caught.</div>
+  <div class="controls">
+    WASD / Arrows — move &amp; drive &nbsp;·&nbsp; Shift — run &nbsp;·&nbsp; Mouse — camera<br>
+    E — enter / exit car &nbsp;·&nbsp; Click — shoot &nbsp;·&nbsp; Space — jump<br>
+    P / Esc — pause &nbsp;·&nbsp; M — mute &nbsp;·&nbsp; R — get back up after WASTED / BUSTED
+  </div>
+  <button class="btn" id="btn-new">NEW GAME</button>
+  <button class="btn ghost" id="btn-continue">CONTINUE</button>
+  <div class="foot">An original game. Solmar Bay, Mara Voss, Dante Reyes and every vehicle,
+  street and song are invented for this game — not affiliated with Rockstar Games.</div>
+</div>
+
+<div id="screen-pause" class="screen">
+  <h1 class="game-title" style="font-size:44px;">PAUSED</h1>
+  <button class="btn" id="btn-resume">RESUME</button>
+  <button class="btn ghost" id="btn-quit">SAVE &amp; QUIT TO TITLE</button>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
