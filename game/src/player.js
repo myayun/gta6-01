@@ -28,6 +28,37 @@ export class Player {
     this.armL.position.set(-0.37, 1.05, 0);
     this.armR = this.armL.clone();
     this.armR.position.x = 0.37;
+    // pistol in the right hand: barrel runs along the arm's local -y, so it
+    // points forward when the arm is raised to aim.
+    const gunmetal = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
+    const gunmetalLight = new THREE.MeshLambertMaterial({ color: 0xd8d8d8 });
+    this.pistol = new THREE.Group();
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.36, 0.09), gunmetal);
+    barrel.position.set(0, -0.15, 0);
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.38, 0.1), gunmetalLight);
+    slide.position.set(0, -0.14, 0.012);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.2, 0.1), gunmetal);
+    grip.position.set(0, 0.04, -0.05);
+    grip.rotation.x = 0.35;
+    this.pistol.add(barrel, slide, grip);
+    // muzzle flash: a bright sphere at the barrel tip, visible from any
+    // angle, hidden until a shot fires.
+    this.muzzleFlashMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18, 8, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0, depthWrite: false }),
+    );
+    this.muzzleFlashMesh.position.set(0, -0.34, 0);
+    this.pistol.add(this.muzzleFlashMesh);
+    this.pistol.position.set(0, -0.34, 0.02);
+    this.pistol.scale.setScalar(1.35); // slightly oversized so the gun reads at a glance
+    this.pistol.rotation.x = -0.5; // tilt the barrel up-forward so the gun reads from behind
+    this.armR.add(this.pistol);
+    // muzzle tip marker: world position for the tracer / shot origin.
+    this.muzzleTip = new THREE.Object3D();
+    this.muzzleTip.position.set(0, -0.3, 0);
+    this.pistol.add(this.muzzleTip);
+    this.weapon = 'pistol'; // 'pistol' | 'fists'
+    this.muzzleTimer = 0;
     this.group.add(torso, head, hair, this.legL, this.legR, this.armL, this.armR);
     scene.add(this.group);
 
@@ -101,7 +132,27 @@ export class Player {
     this.legL.rotation.x = swing;
     this.legR.rotation.x = -swing;
     this.armL.rotation.x = -swing * 0.7;
-    this.armR.rotation.x = swing * 0.7;
+    // right arm: aim-ready with the pistol raised when armed, else it swings
+    if (this.weapon === 'pistol') {
+      this.armR.rotation.x = -1.15;
+    } else {
+      this.armR.rotation.x = swing * 0.7;
+    }
+    this.pistol.visible = this.weapon === 'pistol';
+    if (this.muzzleTimer > 0) {
+      this.muzzleTimer -= dt;
+      if (this.muzzleTimer <= 0) this.muzzleFlashMesh.material.opacity = 0;
+    }
+  }
+
+  muzzleFlash() {
+    this.muzzleTimer = 0.07;
+    this.muzzleFlashMesh.material.opacity = 1;
+  }
+
+  getMuzzleWorldPosition(out) {
+    this.group.updateMatrixWorld(true);
+    return this.muzzleTip.getWorldPosition(out);
   }
 
   damage(amount) {

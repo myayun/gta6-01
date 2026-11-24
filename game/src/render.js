@@ -102,7 +102,7 @@ export class Renderer {
       wantLook = new THREE.Vector3(focus.x, focus.y ?? 2, focus.z);
     } else {
       // on foot: orbit around the player
-      const dist = 8.5;
+      const dist = 6.5;
       const h = 3.6 + Math.sin(pitch) * 3.2;
       const d = dist * Math.cos(pitch);
       wantPos = new THREE.Vector3(
