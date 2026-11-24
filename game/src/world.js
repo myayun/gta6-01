@@ -41,16 +41,23 @@ function makeRoadTexture() {
   const c = document.createElement('canvas');
   c.width = 128; c.height = 128;
   const g = c.getContext('2d');
-  g.fillStyle = '#3a3f44';
+  // dark asphalt base
+  g.fillStyle = '#33373c';
   g.fillRect(0, 0, 128, 128);
-  // edge wear
-  g.fillStyle = 'rgba(0,0,0,0.25)';
-  g.fillRect(0, 0, 128, 6);
-  g.fillRect(0, 122, 128, 6);
-  // centre dashes
+  // asphalt grain: deterministic speckles so the surface is not flat paint
+  for (let i = 0; i < 350; i++) {
+    const x = (i * 37 + 11) % 128;
+    const y = (i * 91 + 53) % 128;
+    g.fillStyle = i % 2 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.08)';
+    g.fillRect(x, y, 2, 2);
+  }
+  // white edge lines, running the length of the tile
   g.fillStyle = '#e8e4d8';
-  g.fillRect(60, 8, 8, 40);
-  g.fillRect(60, 72, 8, 40);
+  g.fillRect(3, 0, 3, 128);
+  g.fillRect(122, 0, 3, 128);
+  // yellow centre dash (one per tile; the repeat below spaces them)
+  g.fillStyle = '#f0c94a';
+  g.fillRect(60, 8, 8, 36);
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = THREE.RepeatWrapping;
   tex.wrapT = THREE.RepeatWrapping;
@@ -112,28 +119,45 @@ export function buildWorld(scene, seed) {
     }
   }
 
-  // --- roads: dark strips with dashed centre lines, along every street
+  // --- roads: dark asphalt strips with yellow centre dashes on every
+  // street, over paler sidewalk borders so each street reads as a street.
+  // Strips run along their street centrelines: vertical roads along z at
+  // x = i*PITCH, horizontal roads along x at z = i*PITCH.
   const roadTex = makeRoadTexture();
-  const roadMat = new THREE.MeshLambertMaterial({ map: roadTex });
+  roadTex.repeat.set(1, SIZE / 24);
+  const roadTexH = roadTex.clone();
+  roadTexH.needsUpdate = true;
+  const roadMatV = new THREE.MeshLambertMaterial({ map: roadTex });
+  const roadMatH = new THREE.MeshLambertMaterial({ map: roadTexH });
+  const walkMat = new THREE.MeshLambertMaterial({ color: 0xd9d2c0 });
+  const walkW = STREET_W + 6; // 3 m of pale border each side of the asphalt
   for (let i = 0; i < STREETS; i++) {
     const c = i * PITCH;
-    // vertical road (along z)
-    const rv = new THREE.Mesh(new THREE.PlaneGeometry(STREET_W, SIZE), roadMat.clone());
-    rv.material.map = roadTex.clone();
-    rv.material.map.repeat.set(1, SIZE / 64);
-    rv.material.map.needsUpdate = true;
+    // sidewalk border under the vertical road (along z, at x = c)
+    const wv = new THREE.Mesh(new THREE.PlaneGeometry(walkW, SIZE), walkMat);
+    wv.rotation.x = -Math.PI / 2;
+    wv.position.set(c, 0.02, SIZE / 2);
+    wv.receiveShadow = true;
+    group.add(wv);
+    // sidewalk border under the horizontal road (along x, at z = c)
+    const wh = new THREE.Mesh(new THREE.PlaneGeometry(SIZE, walkW), walkMat);
+    wh.rotation.x = -Math.PI / 2;
+    wh.position.set(SIZE / 2, 0.02, c);
+    wh.receiveShadow = true;
+    group.add(wh);
+    // vertical asphalt (along z) at x = c: the plane's length axis is
+    // already z, so no extra rotation; the texture's dash runs with it
+    const rv = new THREE.Mesh(new THREE.PlaneGeometry(STREET_W, SIZE), roadMatV);
     rv.rotation.x = -Math.PI / 2;
-    rv.rotation.z = Math.PI / 2;
-    rv.position.set(c, 0.02, SIZE / 2);
+    rv.position.set(c, 0.04, SIZE / 2);
     rv.receiveShadow = true;
     group.add(rv);
-    // horizontal road (along x)
-    const rh = new THREE.Mesh(new THREE.PlaneGeometry(STREET_W, SIZE), roadMat.clone());
-    rh.material.map = roadTex.clone();
-    rh.material.map.repeat.set(1, SIZE / 64);
-    rh.material.map.needsUpdate = true;
+    // horizontal asphalt (along x) at z = c: the extra z-rotation swings
+    // the plane's length axis (and the texture's dash direction) onto x
+    const rh = new THREE.Mesh(new THREE.PlaneGeometry(STREET_W, SIZE), roadMatH);
     rh.rotation.x = -Math.PI / 2;
-    rh.position.set(SIZE / 2, 0.02, c);
+    rh.rotation.z = Math.PI / 2;
+    rh.position.set(SIZE / 2, 0.04, c);
     rh.receiveShadow = true;
     group.add(rh);
   }
