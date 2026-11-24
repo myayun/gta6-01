@@ -65,7 +65,7 @@ export class Missions {
     this.step = 0;
     this.state = 'active';
     const m = this.current();
-    game.hud.toast(`${m.title} — ${m.briefing}`, 7);
+    game.hud.showDialogue(m.speaker, m.role, m.line);
     this.refreshBeacon(game);
   }
 
@@ -113,19 +113,20 @@ export class Missions {
     if (this.step >= m.steps.length) {
       // mission complete
       game.cash += m.payout;
+      game.rp = (game.rp || 0) + m.payout;
       game.audio.chime();
+      game.hud.showDialogue(m.speaker, m.role, `${m.complete} ($${m.payout.toLocaleString()} paid.)`);
       game.hud.toast(`${m.title} complete — $${m.payout.toLocaleString()} paid.`, 5);
       game.save();
       this.index += 1;
       if (this.index >= MISSIONS.length) {
         this.state = 'done';
-        game.hud.toast('The Solmar Job is done. Solmar Bay is yours, Mara.', 7);
         this.refreshBeacon(game);
         return 'complete';
       }
       this.step = 0;
       const next = this.current();
-      game.hud.toast(`${next.title} — ${next.briefing}`, 7);
+      game.hud.showDialogue(next.speaker, next.role, next.line);
     } else {
       game.audio.chime();
     }

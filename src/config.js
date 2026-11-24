@@ -51,28 +51,47 @@ export const MISSIONS = [
   {
     id: 'm1', title: 'First Wheels', payout: 500,
     briefing: "Dante: 'Mara, you're back. Prove it. There's a red Viento GT parked on Palm Row — take it and bring it to my garage. Don't scratch it.'",
+    speaker: 'Dante Reyes', role: 'Fixer',
+    line: "Mara, you're back. Prove it. There's a red Viento GT parked on Palm Row — take it and bring it to my garage. Don't scratch it.",
+    complete: "First Wheels done. The Viento's in my garage, Mara. You're hired.",
     steps: [
       { type: 'steal', carId: 'viento', text: 'Steal the Viento GT on Palm Row' },
-      { type: 'goto', target: 'garage', radius: 10, text: "Drive it to Dante's Garage" },
+      { type: 'goto', target: 'garage', radius: 14, text: "Drive it to Dante's Garage" },
     ],
   },
   {
     id: 'm2', title: 'Bayfront Drop', payout: 1200,
     briefing: "Dante: 'A package needs to reach the marina. Grab it on Palm Row, then run the Bayfront — ninety seconds, and the Bay PD will be on you the moment you pick it up.'",
+    speaker: 'Dante Reyes', role: 'Fixer',
+    line: "A package needs to reach the marina. Grab it on Palm Row, then run the Bayfront — ninety seconds, and the Bay PD will be on you the moment you pick it up.",
+    complete: 'Package delivered. The marina run was clean, Mara. One more job and we are rich.',
     steps: [
-      { type: 'goto', target: 'packagePickup', radius: 8, text: 'Pick up the package on Palm Row' },
-      { type: 'goto', target: 'marina', radius: 10, text: 'Deliver to the Marina — 90 seconds', timer: 90, wanted: 2 },
+      { type: 'goto', target: 'packagePickup', radius: 16, text: 'Pick up the package on Palm Row' },
+      { type: 'goto', target: 'marina', radius: 12, text: 'Deliver to the Marina — 90 seconds', timer: 90, wanted: 2 },
     ],
   },
   {
     id: 'm3', title: 'The Solmar Job', payout: 5000,
     briefing: "Dante: 'The big one. Solmar Bank, midday, three stars the second you touch the cash. Get to Coral Court and we are rich, Mara. Don't get caught.'",
+    speaker: 'Dante Reyes', role: 'Fixer',
+    line: "The big one. Solmar Bank, midday, three stars the second you touch the cash. Get to Coral Court and we are rich, Mara. Don't get caught.",
+    complete: 'The Solmar Job is done. Solmar Bay is yours, Mara.',
     steps: [
-      { type: 'goto', target: 'bank', radius: 10, text: 'Grab the cash at Solmar Bank' },
-      { type: 'goto', target: 'hideout', radius: 12, text: 'Escape to the Hideout — lose the heat', wanted: 3 },
+      { type: 'goto', target: 'bank', radius: 20, text: 'Grab the cash at Solmar Bank' },
+      { type: 'goto', target: 'hideout', radius: 16, text: 'Escape to the Hideout — lose the heat', wanted: 3 },
     ],
   },
 ];
+
+// Reputation ranks, by total mission payout earned (RP).
+export const RANKS = [
+  { min: 0, name: 'ROOKIE' },
+  { min: 500, name: 'DRIVER' },
+  { min: 1700, name: 'FIXER' },
+  { min: 6700, name: 'KINGPIN' },
+];
+
+export const RADIO = 'SOLMAR FM 101.2 — Golden Hour';
 
 export const GAME = {
   startCash: 250,

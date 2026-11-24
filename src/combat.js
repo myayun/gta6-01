@@ -11,14 +11,8 @@ export class Combat {
     this.raycaster = new THREE.Raycaster();
     this.lastShot = 0;
     this.fireRate = 0.25;
-    // muzzle flash: a small bright plane that blinks for a frame
-    this.flash = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.5, 0.5),
-      new THREE.MeshBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0, depthTest: false }),
-    );
-    this.flash.renderOrder = 999;
-    this.scene.add(this.flash);
-    this.flashTimer = 0;
+    // muzzle flash lives on the pistol now (player.muzzleFlash); the
+    // camera flash plane is gone so the flash reads at the gun, not the lens.
     // tracer line
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
@@ -58,7 +52,7 @@ export class Combat {
       // trace to max range
       event.point = this.raycaster.ray.at(80, new THREE.Vector3());
     }
-    // tracer + flash
+    // tracer (starts at the muzzle, passed in as origin)
     const start = origin.clone();
     const pos = this.tracer.geometry.attributes.position;
     pos.setXYZ(0, start.x, start.y, start.z);
@@ -66,10 +60,6 @@ export class Combat {
     pos.needsUpdate = true;
     this.tracer.material.opacity = 0.9;
     this.tracerTimer = 0.08;
-    this.flash.position.copy(start).add(this.camera.getWorldDirection(new THREE.Vector3()).multiplyScalar(1.2));
-    this.flash.lookAt(this.camera.position);
-    this.flash.material.opacity = 0.9;
-    this.flashTimer = 0.05;
     return event;
   }
 
@@ -77,10 +67,6 @@ export class Combat {
     if (this.tracerTimer > 0) {
       this.tracerTimer -= dt;
       if (this.tracerTimer <= 0) this.tracer.material.opacity = 0;
-    }
-    if (this.flashTimer > 0) {
-      this.flashTimer -= dt;
-      if (this.flashTimer <= 0) this.flash.material.opacity = 0;
     }
   }
 }

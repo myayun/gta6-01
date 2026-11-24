@@ -42,6 +42,7 @@ class Game {
     this.world = buildWorld(this.scene, this.seed);
     this.player = new Player(this.scene);
     this.player.reset(LOCATIONS.spawn.x, LOCATIONS.spawn.z);
+    this.rp = 0; // reputation: total mission payout earned
     this.traffic = new TrafficManager(this.scene, this.world, this.seed);
     this.parked = spawnParkedCars(this.scene, this.world, this.seed, GAME.parkedCount);
     // the mission Viento GT, parked on Palm Row
@@ -103,6 +104,7 @@ class Game {
 
   reset() {
     this.cash = GAME.startCash;
+    this.rp = 0;
     this.wanted = 0;
     this.clockMinutes = GAME.startHour * 60 + GAME.startMinute;
     this.elapsed = 0;
@@ -252,6 +254,8 @@ class Game {
 
     if (input.pressed('Escape') || input.pressed('KeyP')) { this.pause(); return; }
     if (input.pressed('KeyM')) this.audio.toggleMute();
+    if (input.pressed('Digit1')) this.player.weapon = 'fists';
+    if (input.pressed('Digit2')) this.player.weapon = 'pistol';
     if (input.pressed('KeyE')) {
       if (this.player.inCar) this.exitCar();
       else {
@@ -298,12 +302,13 @@ class Game {
     } else {
       this.player.update(dt, input, this.yaw, this.world);
       this.audio.setEngine(0, 1, false);
-      // shooting
-      if (input.consumeClick()) {
-        const origin = this.renderer.camera.position;
+      // shooting (pistol only; fists can't shoot)
+      if (input.consumeClick() && this.player.weapon === 'pistol') {
+        const origin = this.player.getMuzzleWorldPosition(new THREE.Vector3());
         const cars = [...this.traffic.cars.filter((c) => c.isTraffic), ...this.police.cops.map((c) => c.vehicle), ...this.parked];
         const ev = this.combat.shoot(this.elapsed, origin, { peds: this.peds, cars });
         if (ev) {
+          this.player.muzzleFlash();
           this.audio.shot();
           if (ev.hit === 'ped' && ev.ref) {
             if (this.peds.knockDown(ev.ref)) this.commitCrime(1);

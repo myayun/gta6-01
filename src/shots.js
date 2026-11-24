@@ -84,23 +84,36 @@ export function stageShot(game, name) {
   game.audioMuted = true;
 
   if (name === 'play') {
-    // Driving downtown in traffic, HUD + minimap on.
-    const car = putPlayerInCar(game, 'brisa', 315.5, 180, 0);
-    const driver = makeDriver([
-      { x: 320, z: 540 },
-      { x: 560, z: 564.5 },
-      { x: 564.5, z: 320 },
-    ]);
-    for (let i = 0; i < 20 * 60; i++) {
-      driver.aim(car);
-      game.update(dt, driver);
+    // On foot by the Viento GT: pistol in hand, mission panel on M1.
+    // Mara walks from south of the car toward it at a slight angle, so the
+    // frame shows her (pistol raised, crosshair) with the Viento and its
+    // beacon ahead — and she stays clear of the beacon glow.
+    game.player.x = 89;
+    game.player.z = 222;
+    game.player.heading = Math.PI + 0.35;
+    game.yaw = Math.PI + 0.35;
+    const walkForward = {
+      moveAxes() { return { x: 0, y: 1 }; },
+      down() { return false; },
+      consumeMouse() { return { dx: 0, dy: 0 }; },
+      consumeClick() { return false; },
+      pressed() { return false; },
+    };
+    for (let i = 0; i < 1.2 * 60; i++) {
+      game.update(dt, walkForward);
     }
+    // Freeze a muzzle flash at the barrel tip: the shot just went off, and
+    // the flash (frozen, since staging is the last update) marks the gun.
+    game.player.muzzleFlash();
     return;
   }
 
   if (name === 'chase') {
-    // Three-star police pursuit down one long straight: the interceptors
-    // stay in frame behind the player the whole run.
+    // Three-star police pursuit: The Solmar Job, escape leg — the
+    // interceptors stay in frame behind the player the whole run.
+    game.missions.startMission(game, 2);
+    game.missions.step = 1;
+    game.missions.refreshBeacon(game);
     const car = putPlayerInCar(game, 'viento', 315.5, 120, 0);
     game.setWanted(3);
     const driver = makeDriver([
