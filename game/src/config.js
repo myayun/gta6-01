@@ -13,8 +13,8 @@ export const WORLD = {
 
 export const COLOURS = {
   sky: 0x87b5d9,
-  fog: 0xd8cdb2,
-  sun: 0xffe3b3,
+  fog: 0xe3c298,
+  sun: 0xffc27a,
   ground: 0x9aa08b,
   road: 0x3a3f44,
   sidewalk: 0xb8b0a0,

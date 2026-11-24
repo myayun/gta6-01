@@ -33,29 +33,30 @@ export class Player {
     const gunmetal = new THREE.MeshLambertMaterial({ color: 0x1a1a1a });
     const gunmetalLight = new THREE.MeshLambertMaterial({ color: 0xd8d8d8 });
     this.pistol = new THREE.Group();
-    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.36, 0.09), gunmetal);
-    barrel.position.set(0, -0.15, 0);
-    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.38, 0.1), gunmetalLight);
-    slide.position.set(0, -0.14, 0.012);
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.2, 0.1), gunmetal);
+    const barrel = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.46, 0.11), gunmetal);
+    barrel.position.set(0, -0.17, 0);
+    const slide = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.48, 0.12), gunmetalLight);
+    slide.position.set(0, -0.16, 0.012);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.24, 0.12), gunmetal);
     grip.position.set(0, 0.04, -0.05);
     grip.rotation.x = 0.35;
     this.pistol.add(barrel, slide, grip);
     // muzzle flash: a bright sphere at the barrel tip, visible from any
-    // angle, hidden until a shot fires.
+    // angle, hidden until a shot fires. Kept small so it marks the shot
+    // without swallowing the gun.
     this.muzzleFlashMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.18, 8, 6),
+      new THREE.SphereGeometry(0.12, 8, 6),
       new THREE.MeshBasicMaterial({ color: 0xffdd55, transparent: true, opacity: 0, depthWrite: false }),
     );
-    this.muzzleFlashMesh.position.set(0, -0.34, 0);
+    this.muzzleFlashMesh.position.set(0, -0.42, 0);
     this.pistol.add(this.muzzleFlashMesh);
     this.pistol.position.set(0, -0.34, 0.02);
-    this.pistol.scale.setScalar(1.35); // slightly oversized so the gun reads at a glance
-    this.pistol.rotation.x = -0.5; // tilt the barrel up-forward so the gun reads from behind
+    this.pistol.scale.setScalar(2.0); // ~1.5x the old size so the gun reads clearly at a glance
+    this.pistol.rotation.x = -0.35; // barrel near-level so it points forward from behind
     this.armR.add(this.pistol);
     // muzzle tip marker: world position for the tracer / shot origin.
     this.muzzleTip = new THREE.Object3D();
-    this.muzzleTip.position.set(0, -0.3, 0);
+    this.muzzleTip.position.set(0, -0.4, 0);
     this.pistol.add(this.muzzleTip);
     this.weapon = 'pistol'; // 'pistol' | 'fists'
     this.muzzleTimer = 0;
@@ -134,7 +135,7 @@ export class Player {
     this.armL.rotation.x = -swing * 0.7;
     // right arm: aim-ready with the pistol raised when armed, else it swings
     if (this.weapon === 'pistol') {
-      this.armR.rotation.x = -1.15;
+      this.armR.rotation.x = -1.25;
     } else {
       this.armR.rotation.x = swing * 0.7;
     }
