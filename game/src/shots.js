@@ -37,7 +37,9 @@ function makeDriver(waypoints) {
       let dh = want - car.heading;
       while (dh > Math.PI) dh -= Math.PI * 2;
       while (dh < -Math.PI) dh += Math.PI * 2;
-      this._steer = Math.max(-1, Math.min(1, dh * 2.2));
+      // steer sign matches the car's heading update (positive steer turns
+      // the car toward screen-right, i.e. decreases heading)
+      this._steer = Math.max(-1, Math.min(1, -dh * 2.2));
       const ad = Math.abs(dh);
       // how sharp is the turn at the current waypoint? brake on the
       // approach so the car enters it slowly and stays on the road

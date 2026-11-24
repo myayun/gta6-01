@@ -54,11 +54,12 @@ export class Player {
     const axes = input.moveAxes();
     const run = input.down('ShiftLeft') || input.down('ShiftRight');
     const top = run ? GAME.playerRun : GAME.playerWalk;
-    // movement relative to camera yaw
+    // movement relative to camera yaw: forward is where the camera looks,
+    // right is the camera's screen-right = cross(forward, up)
     const fx = Math.sin(yaw);
     const fz = Math.cos(yaw);
-    const rx = Math.cos(yaw);
-    const rz = -Math.sin(yaw);
+    const rx = -Math.cos(yaw);
+    const rz = Math.sin(yaw);
     let mx = fx * axes.y + rx * axes.x;
     let mz = fz * axes.y + rz * axes.x;
     const len = Math.hypot(mx, mz);
