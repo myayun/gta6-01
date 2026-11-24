@@ -326,6 +326,7 @@ class Game {
 
     // --- world systems
     this.traffic.update(dt);
+    if (this.world.update) this.world.update(this.elapsed);
     const policeEvents = this.police.update(dt, this);
     for (const ev of policeEvents) {
       if (ev.type === 'ram') {

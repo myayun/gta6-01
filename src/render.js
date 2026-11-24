@@ -10,10 +10,10 @@ function makeSkyTexture() {
   c.width = 4; c.height = 256;
   const g = c.getContext('2d');
   const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0.0, '#3f6d9e'); // zenith
-  grad.addColorStop(0.45, '#87b5d9');
-  grad.addColorStop(0.72, '#f6c98a'); // horizon glow
-  grad.addColorStop(1.0, '#e8a56b');
+  grad.addColorStop(0.0, '#33597f'); // zenith, deeper blue
+  grad.addColorStop(0.45, '#7aaed6');
+  grad.addColorStop(0.72, '#ffb35c'); // horizon glow, warmer
+  grad.addColorStop(1.0, '#e07f3e');
   g.fillStyle = grad;
   g.fillRect(0, 0, 4, 256);
   const tex = new THREE.CanvasTexture(c);
@@ -30,7 +30,7 @@ export class Renderer {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.12;
 
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(COLOURS.fog, 220, 900);
@@ -43,10 +43,10 @@ export class Renderer {
     this.scene.add(sky);
 
     // hemisphere + low golden sun
-    const hemi = new THREE.HemisphereLight(0xbfd9ff, 0x8a7a5a, 0.85);
+    const hemi = new THREE.HemisphereLight(0xcfe0f5, 0xa8845a, 0.8);
     this.scene.add(hemi);
-    this.sun = new THREE.DirectionalLight(COLOURS.sun, 2.4);
-    this.sun.position.set(-260, 150, -140);
+    this.sun = new THREE.DirectionalLight(COLOURS.sun, 2.6);
+    this.sun.position.set(-300, 110, -160);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.camera.left = -140;
@@ -75,7 +75,7 @@ export class Renderer {
 
   // Keep the shadow frustum centred on the action.
   followSun(x, z) {
-    this.sun.position.set(x - 260, 150, z - 140);
+    this.sun.position.set(x - 300, 110, z - 160);
     this.sun.target.position.set(x, 0, z);
     this.sun.target.updateMatrixWorld();
   }

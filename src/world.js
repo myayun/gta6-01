@@ -87,6 +87,109 @@ function makePalm(rng) {
   return palm;
 }
 
+// --- polish helpers (Costa Alba-inspired, reimplemented from scratch) ----
+// mergeParts: merge transformed primitives into one BufferGeometry so the
+// zebra crossings, traffic lights and beach props cost a handful of draw
+// calls instead of hundreds.
+function xform(x, y, z, rx = 0, ry = 0, rz = 0) {
+  const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(rx, ry, rz));
+  m.setPosition(x, y, z);
+  return m;
+}
+
+function mergeParts(parts) {
+  let vCount = 0;
+  let iCount = 0;
+  for (const p of parts) {
+    vCount += p.geo.attributes.position.count;
+    iCount += p.geo.index ? p.geo.index.count : 0;
+  }
+  const pos = new Float32Array(vCount * 3);
+  const nor = new Float32Array(vCount * 3);
+  const uv = new Float32Array(vCount * 2);
+  const idx = new Uint32Array(iCount);
+  let vo = 0;
+  let io = 0;
+  const m = new THREE.Matrix4();
+  const nm = new THREE.Matrix3();
+  const v = new THREE.Vector3();
+  for (const p of parts) {
+    const g = p.geo;
+    m.copy(p.matrix);
+    nm.getNormalMatrix(m);
+    const pa = g.attributes.position.array;
+    const na = g.attributes.normal.array;
+    const ua = g.attributes.uv ? g.attributes.uv.array : null;
+    for (let i = 0; i < g.attributes.position.count; i++) {
+      v.fromArray(pa, i * 3).applyMatrix4(m);
+      pos[(vo + i) * 3] = v.x;
+      pos[(vo + i) * 3 + 1] = v.y;
+      pos[(vo + i) * 3 + 2] = v.z;
+      v.fromArray(na, i * 3).applyMatrix3(nm).normalize();
+      nor[(vo + i) * 3] = v.x;
+      nor[(vo + i) * 3 + 1] = v.y;
+      nor[(vo + i) * 3 + 2] = v.z;
+      if (ua) {
+        uv[(vo + i) * 2] = ua[i * 2];
+        uv[(vo + i) * 2 + 1] = ua[i * 2 + 1];
+      }
+    }
+    if (g.index) {
+      const ia = g.index.array;
+      for (let i = 0; i < ia.length; i++) idx[io + i] = ia[i] + vo;
+      io += ia.length;
+    }
+    vo += g.attributes.position.count;
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  out.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  return out;
+}
+
+// Shopfront sign: bold white text on a coloured band (canvas texture).
+// The canvas is 512x96 (5.33:1); sign planes use the same aspect.
+function makeSignTexture(text, bg) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, 512, 96);
+  g.fillStyle = 'rgba(255,255,255,0.14)';
+  g.fillRect(0, 0, 512, 8);
+  g.fillStyle = '#ffffff';
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  let size = 56;
+  g.font = `bold ${size}px Verdana, Arial, sans-serif`;
+  while (g.measureText(text).width > 480 && size > 20) {
+    size -= 2;
+    g.font = `bold ${size}px Verdana, Arial, sans-serif`;
+  }
+  g.fillText(text, 256, 50);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// Striped parasol canopy: vertical bands on the canvas become radial
+// wedges around the cone.
+function makeStripeTexture(colour) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) {
+    g.fillStyle = i % 2 ? '#f8f4ea' : colour;
+    g.fillRect(i * 16, 0, 16, 64);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 export function buildWorld(scene, seed) {
   const rng = mulberry32(seed);
   const group = new THREE.Group();
@@ -162,6 +265,50 @@ export function buildWorld(scene, seed) {
     group.add(rh);
   }
 
+  // --- zebra crossings at every junction, one merged mesh.
+  // Each approach gets 5 white bars across the road, just short of the
+  // junction, so the crossings read in every street shot.
+  {
+    const pos = [];
+    const nor = [];
+    const uv = [];
+    const idx = [];
+    const addQuad = (x0, z0, x1, z1) => {
+      const base = pos.length / 3;
+      pos.push(x0, 0.06, z0, x1, 0.06, z0, x1, 0.06, z1, x0, 0.06, z1);
+      for (let i = 0; i < 4; i++) nor.push(0, 1, 0);
+      uv.push(0, 0, 1, 0, 1, 1, 0, 1);
+      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+    for (let i = 0; i < STREETS; i++) {
+      for (let j = 0; j < STREETS; j++) {
+        const cx = i * PITCH;
+        const cz = j * PITCH;
+        // approaches from the north / south: bars run across the road (x).
+        // Wide bars (1.4 m) on a 2.4 m pitch so the stripes stay readable
+        // from a low chase camera instead of blurring into one line.
+        const zb = [19.4, 17.0, 14.6, 12.2, 9.8];
+        for (const off of zb) {
+          if (j > 0) addQuad(cx - 6.5, cz - off - 0.7, cx + 6.5, cz - off + 0.7);
+          if (j < STREETS - 1) addQuad(cx - 6.5, cz + off - 0.7, cx + 6.5, cz + off + 0.7);
+        }
+        // approaches from the west / east: bars run across the road (z)
+        for (const off of zb) {
+          if (i > 0) addQuad(cx - off - 0.7, cz - 6.5, cx - off + 0.7, cz + 6.5);
+          if (i < STREETS - 1) addQuad(cx + off - 0.7, cz - 6.5, cx + off + 0.7, cz + 6.5);
+        }
+      }
+    }
+    const zg = new THREE.BufferGeometry();
+    zg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+    zg.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(nor), 3));
+    zg.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uv), 2));
+    zg.setIndex(idx);
+    const zebra = new THREE.Mesh(zg, new THREE.MeshLambertMaterial({ color: 0xe8e4d8 }));
+    zebra.receiveShadow = true;
+    group.add(zebra);
+  }
+
   // --- beach sand and ocean
   const sand = new THREE.Mesh(
     new THREE.PlaneGeometry(SIZE + 160, 90),
@@ -179,7 +326,90 @@ export function buildWorld(scene, seed) {
   ocean.position.set(SIZE / 2, 0.06, SIZE + 175);
   group.add(ocean);
 
+  // --- beach life: striped parasols, towels and loungers on the dry sand.
+  // All procedural, merged per colour so the whole beach costs a few draw
+  // calls. Kept clear of the pier and the marina approach so the M2 drive
+  // reads clean. Dry sand runs z 640..685; the waterline is at ~685.
+  {
+    const beachRng = mulberry32(seed + 4242);
+    const parasolCols = ['#d94f2b', '#1e8449', '#f1c40f'];
+    const stripeTexs = parasolCols.map((c) => makeStripeTexture(c));
+    const coneGeo = new THREE.ConeGeometry(1.7, 1.0, 8);
+    const poleGeoB = new THREE.CylinderGeometry(0.05, 0.05, 2.5, 6);
+    const coneParts = [[], [], []];
+    const poleParts = [];
+    for (let i = 0; i < 30; i++) {
+      const x = 30 + beachRng() * 660;
+      const z = 650 + beachRng() * 28;
+      if (x > 570 && x < 630) continue; // pier + marina approach
+      const gi = i % 3;
+      coneParts[gi].push({ geo: coneGeo, matrix: xform(x, 2.5, z, 0, beachRng() * Math.PI, 0) });
+      poleParts.push({ geo: poleGeoB, matrix: xform(x, 1.25, z) });
+    }
+    const poleMeshB = new THREE.Mesh(mergeParts(poleParts), new THREE.MeshLambertMaterial({ color: 0xf5f6fa }));
+    poleMeshB.castShadow = true;
+    group.add(poleMeshB);
+    for (let gi = 0; gi < 3; gi++) {
+      if (!coneParts[gi].length) continue;
+      const m = new THREE.Mesh(
+        mergeParts(coneParts[gi]),
+        new THREE.MeshLambertMaterial({ map: stripeTexs[gi] }),
+      );
+      m.castShadow = true;
+      group.add(m);
+    }
+    // towels: bright flat rectangles on the sand
+    const towelCols = [0xe84393, 0x0984e3, 0xfdcb6e, 0xe17055];
+    const towelGeo = new THREE.PlaneGeometry(1.9, 0.95);
+    towelGeo.rotateX(-Math.PI / 2); // lie flat; spin about Y per towel
+    const towelParts = [[], [], [], []];
+    for (let i = 0; i < 24; i++) {
+      const x = 30 + beachRng() * 660;
+      const z = 652 + beachRng() * 26;
+      if (x > 570 && x < 630) continue;
+      towelParts[i % 4].push({ geo: towelGeo, matrix: xform(x, 0.08, z, 0, beachRng() * Math.PI, 0) });
+    }
+    for (let gi = 0; gi < 4; gi++) {
+      if (!towelParts[gi].length) continue;
+      const m = new THREE.Mesh(
+        mergeParts(towelParts[gi]),
+        new THREE.MeshLambertMaterial({ color: towelCols[gi] }),
+      );
+      m.receiveShadow = true;
+      group.add(m);
+    }
+    // loungers: low white beds with a raised headrest
+    const bedGeo = new THREE.BoxGeometry(1.9, 0.3, 0.7);
+    const restGeo = new THREE.BoxGeometry(0.7, 0.28, 0.66);
+    const bedParts = [];
+    const restParts = [];
+    for (let i = 0; i < 10; i++) {
+      const x = 40 + beachRng() * 640;
+      const z = 654 + beachRng() * 24;
+      if (x > 570 && x < 630) continue;
+      const ry = beachRng() * Math.PI;
+      bedParts.push({ geo: bedGeo, matrix: xform(x, 0.18, z, 0, ry, 0) });
+      restParts.push({ geo: restGeo, matrix: xform(x + Math.cos(ry) * 0.6, 0.42, z - Math.sin(ry) * 0.6, 0, ry, -0.5) });
+    }
+    const loungerMat = new THREE.MeshLambertMaterial({ color: 0xf5f6fa });
+    const bedMesh = new THREE.Mesh(mergeParts(bedParts), loungerMat);
+    bedMesh.castShadow = true;
+    group.add(bedMesh);
+    group.add(new THREE.Mesh(mergeParts(restParts), loungerMat));
+  }
+
   // --- buildings, one or more per block
+  // Shopfront signs: our own shop names on ground-floor faces, facing the
+  // nearest street. A separate seeded stream, so the building layout is
+  // byte-identical to before this polish pass.
+  const SHOPS = [
+    ['TACO SOL', '#d94f2b'], ['LAUNDRY', '#2e6fb0'], ['PAWN SHOP', '#b03a2e'],
+    ['GYM', '#7d3c98'], ['CAFÉ MAR', '#1e8449'], ['BURGER', '#b7950b'],
+    ['PHARMACY', '#148f77'], ['BAR', '#5d3a1a'],
+  ];
+  const signTexs = SHOPS.map(([name, bg]) => makeSignTexture(name, bg));
+  const signRng = mulberry32(seed + 777);
+  const signRng2 = mulberry32(seed + 778);
   const facadeBases = ['#e8dcc8', '#d9a066', '#7fb3a3', '#c97b6b', '#f2e3c6', '#8fa8c8'];
   const facadeMats = facadeBases.map((base) => {
     const tex = makeFacadeTexture(base, 0.35);
@@ -217,6 +447,31 @@ export function buildWorld(scene, seed) {
         mesh.castShadow = true;
         mesh.receiveShadow = true;
         group.add(mesh);
+        // ground-floor shopfront: a sign band on the face nearest a street.
+        // Low blocks draw from the original stream (their signs are
+        // unchanged); taller buildings draw from a second stream, so the
+        // towers flanking the staged routes get shopfronts too.
+        const sRng = stories <= 2 ? signRng : signRng2;
+        if (sRng() < 0.5) {
+          const si = Math.floor(sRng() * SHOPS.length);
+          const sw = Math.min(w * 0.7, 9);
+          const sh = sw * 0.1875;
+          const sign = new THREE.Mesh(
+            new THREE.PlaneGeometry(sw, sh),
+            new THREE.MeshLambertMaterial({ map: signTexs[si] }),
+          );
+          const dw = x - w / 2 - bx * PITCH;
+          const de = (bx + 1) * PITCH - (x + w / 2);
+          const dn = z - d / 2 - bz * PITCH;
+          const ds = (bz + 1) * PITCH - (z + d / 2);
+          const sy = 2.5;
+          const m = Math.min(dw, de, dn, ds);
+          if (m === ds) sign.position.set(x, sy, z + d / 2 + 0.08);
+          else if (m === dn) { sign.position.set(x, sy, z - d / 2 - 0.08); sign.rotation.y = Math.PI; }
+          else if (m === de) { sign.position.set(x + w / 2 + 0.08, sy, z); sign.rotation.y = Math.PI / 2; }
+          else { sign.position.set(x - w / 2 - 0.08, sy, z); sign.rotation.y = -Math.PI / 2; }
+          group.add(sign);
+        }
         // roof cap + AC box
         const cap = new THREE.Mesh(new THREE.BoxGeometry(w + 0.6, 0.5, d + 0.6), roofMat);
         cap.position.set(x, h + 0.25, z);
@@ -256,6 +511,65 @@ export function buildWorld(scene, seed) {
     }
   }
 
+  // --- traffic lights at eight junctions on the staged routes: a gantry
+  // pole + arm over the road, signal box with red/green lamps on all four
+  // faces. Purely visual — they never stop traffic or the autopilot.
+  // Two phase groups alternate so the city doesn't switch in unison.
+  // Lamps cycle on game.elapsed (deterministic), see updateLights below.
+  const lightSpots = [
+    [80, 160], [160, 320], [320, 320], [320, 480],
+    [480, 400], [240, 480], [560, 560], [560, 640],
+  ];
+  const housingParts = [];
+  const lampRedA = [];
+  const lampGreenA = [];
+  const lampRedB = [];
+  const lampGreenB = [];
+  const poleGeo = new THREE.CylinderGeometry(0.11, 0.14, 6.4, 6);
+  const armGeo = new THREE.BoxGeometry(0.18, 0.18, 8.6);
+  const houseGeo = new THREE.BoxGeometry(0.5, 1.15, 0.5);
+  const lampGeo = new THREE.SphereGeometry(0.17, 8, 6);
+  lightSpots.forEach(([jx, jz], li) => {
+    const px = jx + 8.5;
+    const pz = jz - 8.5;
+    housingParts.push({ geo: poleGeo, matrix: xform(px, 3.2, pz) });
+    housingParts.push({ geo: armGeo, matrix: xform(px, 6.3, pz + 4.3) });
+    const hx = px;
+    const hz = jz - 0.4;
+    housingParts.push({ geo: houseGeo, matrix: xform(hx, 5.5, hz) });
+    const reds = li % 2 === 0 ? lampRedA : lampRedB;
+    const greens = li % 2 === 0 ? lampGreenA : lampGreenB;
+    for (const [lx, lz] of [[-0.27, 0], [0.27, 0], [0, -0.27], [0, 0.27]]) {
+      reds.push({ geo: lampGeo, matrix: xform(hx + lx, 5.78, hz + lz) });
+      greens.push({ geo: lampGeo, matrix: xform(hx + lx, 5.22, hz + lz) });
+    }
+  });
+  group.add(new THREE.Mesh(
+    mergeParts(housingParts),
+    new THREE.MeshLambertMaterial({ color: 0x2f3542 }),
+  ));
+  const lampMatRedA = new THREE.MeshBasicMaterial({ color: 0xff2a1a });
+  const lampMatGreenA = new THREE.MeshBasicMaterial({ color: 0x0d2a12 });
+  const lampMatRedB = new THREE.MeshBasicMaterial({ color: 0x3a0d0d });
+  const lampMatGreenB = new THREE.MeshBasicMaterial({ color: 0x2aff5a });
+  for (const [geo, mat] of [
+    [mergeParts(lampRedA), lampMatRedA],
+    [mergeParts(lampGreenA), lampMatGreenA],
+    [mergeParts(lampRedB), lampMatRedB],
+    [mergeParts(lampGreenB), lampMatGreenB],
+  ]) {
+    group.add(new THREE.Mesh(geo, mat));
+  }
+  // 16 s cycle, red 8 s / green 8 s, group B offset by half a period.
+  function updateLights(elapsed) {
+    const a = elapsed % 16 < 8;
+    lampMatRedA.color.setHex(a ? 0xff2a1a : 0x3a0d0d);
+    lampMatGreenA.color.setHex(a ? 0x0d2a12 : 0x2aff5a);
+    const b = (elapsed + 8) % 16 < 8;
+    lampMatRedB.color.setHex(b ? 0xff2a1a : 0x3a0d0d);
+    lampMatGreenB.color.setHex(b ? 0x0d2a12 : 0x2aff5a);
+  }
+
   // --- marina pier (walkable, flush with the ground so cars sit on it)
   const pierMat = new THREE.MeshLambertMaterial({ color: 0x9a7b52 });
   const pier = new THREE.Mesh(new THREE.BoxGeometry(16, 0.12, 64), pierMat);
@@ -281,6 +595,7 @@ export function buildWorld(scene, seed) {
     colliders,
     streetCoords: Array.from({ length: STREETS }, (_, i) => i * PITCH),
     pier: { minX: 592, maxX: 608, maxZ: 702 },
+    update: updateLights,
   };
 }
 
