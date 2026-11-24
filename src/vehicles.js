@@ -120,7 +120,9 @@ export class Vehicle {
     }
     this.speed -= this.speed * 0.12 * dt;
     const turn = this.steer * 2.1 * Math.min(1, Math.abs(this.speed) / 9) * (this.speed >= 0 ? 1 : -1);
-    this.heading += turn * dt;
+    // positive steer (D / right) must turn the car toward the chase cam's
+    // screen-right, i.e. decrease heading (forward = (sin h, cos h))
+    this.heading -= turn * dt;
     const nx = this.x + Math.sin(this.heading) * this.speed * dt;
     const nz = this.z + Math.cos(this.heading) * this.speed * dt;
     // buildings
